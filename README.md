@@ -1,5 +1,122 @@
 # Telegram Summary Bot With MiniApp Control Panel
 
+## Minimal local bot setup
+
+This repository includes a minimal Python Telegram bot you can run locally or deploy as a long-running worker. The script supports:
+
+- `/start` health check
+- `/help` command list
+- `/summary <text>` to summarize provided text
+- `/summary` to summarize recent text messages seen in the current chat
+
+The current summarizer is intentionally local and dependency-light. It creates a short extractive summary from the first few sentences and does not require an AI API key.
+
+### 1. Create a Telegram bot token
+
+1. Open Telegram and message [@BotFather](https://t.me/BotFather).
+2. Run `/newbot`.
+3. Follow the prompts and copy the bot token.
+4. For group summaries, ask BotFather for `/setprivacy` and disable privacy mode so the bot can read group messages.
+
+### 2. Run locally
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+```
+
+Edit `.env` and replace `TELEGRAM_BOT_TOKEN` with your real token.
+
+Start the bot:
+
+```bash
+python bot.py
+```
+
+Open Telegram, message your bot, and run:
+
+```text
+/start
+/summary This is a long message. It has several sentences. The bot returns a short summary.
+```
+
+### 3. Environment variables
+
+| Variable | Required | Default | Description |
+| --- | --- | --- | --- |
+| `TELEGRAM_BOT_TOKEN` | Yes | None | Token from BotFather. |
+| `LOG_LEVEL` | No | `INFO` | Python logging level. |
+| `POLL_TIMEOUT` | No | `30` | Telegram long-poll timeout in seconds. |
+| `MAX_STORED_MESSAGES` | No | `100` | Recent messages retained per chat for `/summary`. |
+| `SUMMARY_SENTENCES` | No | `5` | Maximum sentences returned by the local summarizer. |
+
+### 4. Deploy with Docker
+
+Build the image:
+
+```bash
+docker build -t telegram-summary-bot .
+```
+
+Run it:
+
+```bash
+docker run --env-file .env --restart unless-stopped telegram-summary-bot
+```
+
+### 5. Deploy on Render, Railway, Fly.io, or similar
+
+Use the repository as a worker/background service, not a web service.
+
+General settings:
+
+- Build command: `pip install -r requirements.txt`
+- Start command: `python bot.py`
+- Environment variable: `TELEGRAM_BOT_TOKEN=<your BotFather token>`
+
+If the platform supports Procfile workers, this repository includes:
+
+```text
+worker: python bot.py
+```
+
+### 6. Deploy on a VPS with systemd
+
+Clone the repository on your server, create `.env`, install dependencies, then create `/etc/systemd/system/telegram-summary-bot.service`:
+
+```ini
+[Unit]
+Description=Telegram Summary Bot
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/telegram-summary-bot
+EnvironmentFile=/opt/telegram-summary-bot/.env
+ExecStart=/opt/telegram-summary-bot/.venv/bin/python /opt/telegram-summary-bot/bot.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start it:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable telegram-summary-bot
+sudo systemctl start telegram-summary-bot
+sudo systemctl status telegram-summary-bot
+```
+
+### 7. Security notes
+
+- Never commit `.env` or your real Telegram token.
+- Rotate the token in BotFather if it is exposed.
+- Use one running instance per bot token when using long polling.
+
 _Powerful AI-powered manager for Telegram channels and groups, Summarize and query channel and group chats. No limits. No coding. Just results.
 Best MiniApp for businesses, marketers, and agencies who want to grow rapidly on Telegram and effortlessly manage their Channels and Groups via a single Dashboard.
 The Ultimate Telegram Channel & Group Manager._
